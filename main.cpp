@@ -251,21 +251,10 @@ int main() {
     }
     const string start = startWords[0];
 
-    cout << "Number of production lines (one line per left-hand side): ";
-    if (!getline(cin, line)) return 1;
-    int productionLineCount = 0;
-    try {
-        size_t used = 0;
-        productionLineCount = stoi(line, &used);
-        if (used != line.size() || productionLineCount <= 0) throw invalid_argument("count");
-    } catch (...) {
-        cerr << "Enter a positive whole number of production lines.\n";
-        return 1;
-    }
-
     vector<Rule> rules;
-    cout << "Enter each production like A -> symbol symbol | epsilon:\n";
-    for (int i = 0; i < productionLineCount; ++i) {
+    cout << "Enter one production line for each nonterminal, in the order listed.\\n";
+    cout << "Use the form A -> symbol symbol | epsilon:\\n";
+    for (const string& expectedLhs : nonterminals) {
         if (!getline(cin, line)) {
             cerr << "Missing production line.\n";
             return 1;
@@ -278,8 +267,9 @@ int main() {
         }
 
         const vector<string> lhsWords = splitWords(line.substr(0, arrow));
-        if (lhsWords.size() != 1 || !nonterminalSet.count(lhsWords[0])) {
-            cerr << "The left side must be one listed nonterminal.\n";
+        if (lhsWords.size() != 1 || lhsWords[0] != expectedLhs) {
+            cerr << "Expected a production for " << expectedLhs
+                 << " in the listed nonterminal order.\\n";
             return 1;
         }
         const string lhs = lhsWords[0];
