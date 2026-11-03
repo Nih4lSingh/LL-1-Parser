@@ -3,6 +3,7 @@
 #include <map>
 #include <set>
 #include <sstream>
+#include <stdexcept>
 #include <string>
 #include <vector>
 
@@ -25,7 +26,6 @@ vector<string> splitWords(const string& line) {
 
 SymbolSet firstOfSequence(const Production& sequence,
                           const SymbolSet& terminals,
-                          const SymbolSet& nonterminals,
                           const map<string, SymbolSet>& first) {
     SymbolSet result;
     bool allNullable = true;
@@ -66,8 +66,7 @@ map<string, SymbolSet> computeFirst(const vector<string>& nonterminals,
     while (changed) {
         changed = false;
         for (const Rule& rule : rules) {
-            SymbolSet addition = firstOfSequence(
-                rule.second, terminals, SymbolSet(nonterminals.begin(), nonterminals.end()), first);
+            SymbolSet addition = firstOfSequence(rule.second, terminals, first);
             const size_t oldSize = first[rule.first].size();
             first[rule.first].insert(addition.begin(), addition.end());
             changed = changed || first[rule.first].size() != oldSize;
@@ -96,7 +95,7 @@ map<string, SymbolSet> computeFollow(const vector<string>& nonterminals,
 
                 Production suffix(rule.second.begin() + static_cast<long>(i + 1),
                                  rule.second.end());
-                SymbolSet suffixFirst = firstOfSequence(suffix, terminals, nonterminalSet, first);
+                SymbolSet suffixFirst = firstOfSequence(suffix, terminals, first);
                 const size_t oldSize = follow[current].size();
 
                 for (const string& item : suffixFirst) {
@@ -121,7 +120,7 @@ ParsingTable makeTable(const vector<Rule>& rules,
                        const map<string, SymbolSet>& follow) {
     ParsingTable table;
     for (const Rule& rule : rules) {
-        SymbolSet productionFirst = firstOfSequence(rule.second, terminals, nonterminals, first);
+        SymbolSet productionFirst = firstOfSequence(rule.second, terminals, first);
         for (const string& lookahead : productionFirst) {
             if (lookahead != EPSILON) table[{rule.first, lookahead}].push_back(rule.second);
         }
