@@ -311,6 +311,30 @@ int main() {
     printSets("FOLLOW", nonterminals, follow);
 
     const ParsingTable table = makeTable(rules, terminals, nonterminalSet, first, follow);
+
+    cout << "\\nParsing table (filled entries):\\n";
+    for (const string& nonterminal : nonterminals) {
+        for (const string& terminal : terminals) {
+            const auto entry = table.find({nonterminal, terminal});
+            if (entry == table.end()) continue;
+            cout << "  M[" << nonterminal << ", " << terminal << "] = ";
+            for (size_t i = 0; i < entry->second.size(); ++i) {
+                if (i > 0) cout << " | ";
+                cout << productionText(entry->second[i]);
+            }
+            cout << "\\n";
+        }
+        const auto endEntry = table.find({nonterminal, END_MARKER});
+        if (endEntry != table.end()) {
+            cout << "  M[" << nonterminal << ", " << END_MARKER << "] = ";
+            for (size_t i = 0; i < endEntry->second.size(); ++i) {
+                if (i > 0) cout << " | ";
+                cout << productionText(endEntry->second[i]);
+            }
+            cout << "\\n";
+        }
+    }
+
     bool isLL1 = true;
     cout << "\nParsing table conflicts:\n";
     for (const auto& entry : table) {
