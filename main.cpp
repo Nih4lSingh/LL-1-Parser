@@ -320,6 +320,9 @@ int main() {
                  << entry.second.size() << " productions\n";
         }
     }
+    if (isLL1) {
+        cout << "No conflicts found.\n";
+    }
     if (!isLL1) {
         cout << "The grammar is not LL(1); no string will be parsed.\n";
         return 0;
