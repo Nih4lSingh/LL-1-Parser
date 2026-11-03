@@ -1,12 +1,4 @@
-#include <algorithm>
-#include <iostream>
-#include <map>
-#include <set>
-#include <sstream>
-#include <stdexcept>
-#include <string>
-#include <vector>
-
+#include <bits/stdc++.h>
 using namespace std;
 
 const string EPSILON = "epsilon";
