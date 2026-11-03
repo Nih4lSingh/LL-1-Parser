@@ -252,8 +252,8 @@ int main() {
     const string start = startWords[0];
 
     vector<Rule> rules;
-    cout << "Enter one production line for each nonterminal, in the order listed.\\n";
-    cout << "Use the form A -> symbol symbol | epsilon:\\n";
+    cout << "Enter one production line for each nonterminal, in the order listed.\n";
+    cout << "Use the form A -> symbol symbol | epsilon:\n";
     for (const string& expectedLhs : nonterminals) {
         if (!getline(cin, line)) {
             cerr << "Missing production line.\n";
@@ -269,7 +269,7 @@ int main() {
         const vector<string> lhsWords = splitWords(line.substr(0, arrow));
         if (lhsWords.size() != 1 || lhsWords[0] != expectedLhs) {
             cerr << "Expected a production for " << expectedLhs
-                 << " in the listed nonterminal order.\\n";
+                 << " in the listed nonterminal order.\n";
             return 1;
         }
         const string lhs = lhsWords[0];
