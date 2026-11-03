@@ -336,11 +336,11 @@ int main() {
         size_t used = 0;
         inputCount = stoi(line, &used);
         if (used != line.size() || inputCount <= 0) {
-            cerr << "Enter a positive whole number of input strings.\\n";
+            cerr << "Enter a positive whole number of input strings.\n";
             return 1;
         }
     } catch (const exception&) {
-        cerr << "Enter a positive whole number of input strings.\\n";
+        cerr << "Enter a positive whole number of input strings.\n";
         return 1;
     }
 
@@ -348,7 +348,7 @@ int main() {
         cout << "Input string " << (i + 1)
              << " (space-separated terminals; blank for epsilon): ";
         if (!getline(cin, line)) {
-            cerr << "Missing input string.\\n";
+            cerr << "Missing input string.\n";
             return 1;
         }
 
@@ -356,7 +356,7 @@ int main() {
         bool validTokens = true;
         for (const string& token : tokens) {
             if (!terminals.count(token)) {
-                cout << "Rejected: '" << token << "' is not a listed terminal.\\n";
+                cout << "Rejected: '" << token << "' is not a listed terminal.\n";
                 validTokens = false;
                 break;
             }
@@ -368,7 +368,7 @@ int main() {
             accepted = parseInput(tokens, start, terminals, nonterminalSet, table);
         }
         cout << "String " << (i + 1) << " is "
-             << (accepted ? "accepted." : "not accepted.") << "\\n\\n";
+             << (accepted ? "accepted." : "not accepted.") << "\n\n";
     }
     return 0;
 }
