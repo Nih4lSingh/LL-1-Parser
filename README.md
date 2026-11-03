@@ -33,6 +33,42 @@ A → b
 
 the input `ab` is accepted: the parser expands `S` to `a A`, matches `a`, expands `A` to `b`, and then matches `b`.
 
+## The C++ parser in this repository
+
+`main.cpp` is a table-driven parser for arithmetic expressions. It uses this LL(1) grammar:
+
+```text
+E → T Q
+Q → + T Q | ε
+T → F R
+R → * F R | ε
+F → ( E ) | id
+```
+
+Here, `id` means an identifier or a whole number. The grammar supports addition, multiplication, and parentheses; multiplication has higher precedence because it is handled by `T`, below `E`. The parser tokenizes the input, then uses a stack and a parsing table to show each match or production expansion. It accepts a complete expression or reports where parsing failed.
+
+### Build and run
+
+You need a C++17 compiler, such as g++.
+
+On Windows (PowerShell with g++ installed):
+
+```powershell
+g++ -std=c++17 -Wall -Wextra -pedantic main.cpp -o ll1_parser.exe
+.\ll1_parser.exe
+```
+
+On Linux or macOS:
+
+```sh
+g++ -std=c++17 -Wall -Wextra -pedantic main.cpp -o ll1_parser
+./ll1_parser
+```
+
+Type an expression when prompted. For example, `(x + 12) * y` is accepted. An expression such as `x + * y` is rejected. Spaces are allowed.
+
+The parsing table is written directly in `makeParsingTable()` for this example grammar. The program does not yet calculate FIRST/FOLLOW sets or generate a table for an arbitrary grammar.
+
 ## Why use an LL(1) parser?
 
 LL(1) parsers are straightforward to implement and can parse input efficiently in a single pass. They are useful for learning how grammars, parsing tables, and syntax analysis fit together. Their main limitation is that not every grammar can be parsed as LL(1) without being rewritten.
