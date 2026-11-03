@@ -1,158 +1,360 @@
-#include <cctype>
+#include <algorithm>
 #include <iostream>
 #include <map>
+#include <set>
+#include <sstream>
 #include <string>
 #include <vector>
 
 using namespace std;
 
+const string EPSILON = "epsilon";
+const string END_MARKER = "$";
 using Production = vector<string>;
-using Table = map<pair<string, string>, Production>;
+using Rule = pair<string, Production>;
+using SymbolSet = set<string>;
+using ParsingTable = map<pair<string, string>, vector<Production>>;
 
-// Tokenize identifiers and numbers as "id", and recognize +, *, (, and ).
-bool tokenize(const string& input, vector<string>& tokens, string& error) {
-    for (size_t i = 0; i < input.size();) {
-        const unsigned char ch = static_cast<unsigned char>(input[i]);
+vector<string> splitWords(const string& line) {
+    istringstream input(line);
+    vector<string> words;
+    string word;
+    while (input >> word) words.push_back(word);
+    return words;
+}
 
-        if (isspace(ch)) {
-            ++i;
-        } else if (isalpha(ch) || ch == '_') {
-            while (i < input.size()) {
-                const unsigned char next = static_cast<unsigned char>(input[i]);
-                if (!isalnum(next) && next != '_') break;
-                ++i;
-            }
-            tokens.push_back("id");
-        } else if (isdigit(ch)) {
-            while (i < input.size() &&
-                   isdigit(static_cast<unsigned char>(input[i]))) {
-                ++i;
-            }
-            tokens.push_back("id");
-        } else if (input[i] == '+' || input[i] == '*' ||
-                   input[i] == '(' || input[i] == ')') {
-            tokens.emplace_back(1, input[i]);
-            ++i;
-        } else {
-            error = string("Unrecognized character: '") + input[i] + "'";
-            return false;
+SymbolSet firstOfSequence(const Production& sequence,
+                          const SymbolSet& terminals,
+                          const SymbolSet& nonterminals,
+                          const map<string, SymbolSet>& first) {
+    SymbolSet result;
+    bool allNullable = true;
+
+    for (const string& symbol : sequence) {
+        if (terminals.count(symbol)) {
+            result.insert(symbol);
+            allNullable = false;
+            break;
+        }
+
+        const auto found = first.find(symbol);
+        if (found == first.end()) {
+            allNullable = false;
+            break;
+        }
+
+        for (const string& item : found->second) {
+            if (item != EPSILON) result.insert(item);
+        }
+        if (!found->second.count(EPSILON)) {
+            allNullable = false;
+            break;
         }
     }
 
-    tokens.push_back("$"); // End-of-input marker.
-    return true;
+    if (allNullable) result.insert(EPSILON);
+    return result;
 }
 
-Table makeParsingTable() {
-    // Grammar:
-    // E  -> T Q
-    // Q  -> + T Q | epsilon
-    // T  -> F R
-    // R  -> * F R | epsilon
-    // F  -> ( E ) | id
-    Table table;
-    table[{"E", "id"}] = {"T", "Q"};
-    table[{"E", "("}] = {"T", "Q"};
+map<string, SymbolSet> computeFirst(const vector<string>& nonterminals,
+                                    const SymbolSet& terminals,
+                                    const vector<Rule>& rules) {
+    map<string, SymbolSet> first;
+    for (const string& nonterminal : nonterminals) first[nonterminal];
 
-    table[{"Q", "+"}] = {"+", "T", "Q"};
-    table[{"Q", ")"}] = {}; // epsilon
-    table[{"Q", "$"}] = {}; // epsilon
+    bool changed = true;
+    while (changed) {
+        changed = false;
+        for (const Rule& rule : rules) {
+            SymbolSet addition = firstOfSequence(
+                rule.second, terminals, SymbolSet(nonterminals.begin(), nonterminals.end()), first);
+            const size_t oldSize = first[rule.first].size();
+            first[rule.first].insert(addition.begin(), addition.end());
+            changed = changed || first[rule.first].size() != oldSize;
+        }
+    }
+    return first;
+}
 
-    table[{"T", "id"}] = {"F", "R"};
-    table[{"T", "("}] = {"F", "R"};
+map<string, SymbolSet> computeFollow(const vector<string>& nonterminals,
+                                     const SymbolSet& terminals,
+                                     const vector<Rule>& rules,
+                                     const string& start,
+                                     const map<string, SymbolSet>& first) {
+    map<string, SymbolSet> follow;
+    for (const string& nonterminal : nonterminals) follow[nonterminal];
+    follow[start].insert(END_MARKER);
 
-    table[{"R", "*"}] = {"*", "F", "R"};
-    table[{"R", "+"}] = {}; // epsilon
-    table[{"R", ")"}] = {}; // epsilon
-    table[{"R", "$"}] = {}; // epsilon
+    const SymbolSet nonterminalSet(nonterminals.begin(), nonterminals.end());
+    bool changed = true;
+    while (changed) {
+        changed = false;
+        for (const Rule& rule : rules) {
+            for (size_t i = 0; i < rule.second.size(); ++i) {
+                const string& current = rule.second[i];
+                if (!nonterminalSet.count(current)) continue;
 
-    table[{"F", "("}] = {"(", "E", ")"};
-    table[{"F", "id"}] = {"id"};
+                Production suffix(rule.second.begin() + static_cast<long>(i + 1),
+                                 rule.second.end());
+                SymbolSet suffixFirst = firstOfSequence(suffix, terminals, nonterminalSet, first);
+                const size_t oldSize = follow[current].size();
+
+                for (const string& item : suffixFirst) {
+                    if (item != EPSILON) follow[current].insert(item);
+                }
+                if (suffixFirst.count(EPSILON)) {
+                    follow[current].insert(follow[rule.first].begin(),
+                                           follow[rule.first].end());
+                }
+
+                changed = changed || follow[current].size() != oldSize;
+            }
+        }
+    }
+    return follow;
+}
+
+ParsingTable makeTable(const vector<Rule>& rules,
+                       const SymbolSet& terminals,
+                       const SymbolSet& nonterminals,
+                       const map<string, SymbolSet>& first,
+                       const map<string, SymbolSet>& follow) {
+    ParsingTable table;
+    for (const Rule& rule : rules) {
+        SymbolSet productionFirst = firstOfSequence(rule.second, terminals, nonterminals, first);
+        for (const string& lookahead : productionFirst) {
+            if (lookahead != EPSILON) table[{rule.first, lookahead}].push_back(rule.second);
+        }
+        if (productionFirst.count(EPSILON)) {
+            for (const string& lookahead : follow.at(rule.first)) {
+                table[{rule.first, lookahead}].push_back(rule.second);
+            }
+        }
+    }
+
+    for (auto& entry : table) {
+        auto& alternatives = entry.second;
+        vector<Production> unique;
+        for (const Production& production : alternatives) {
+            if (find(unique.begin(), unique.end(), production) == unique.end()) {
+                unique.push_back(production);
+            }
+        }
+        alternatives = unique;
+    }
     return table;
 }
 
-bool isNonterminal(const string& symbol) {
-    return symbol == "E" || symbol == "Q" ||
-           symbol == "T" || symbol == "R" || symbol == "F";
+string productionText(const Production& production) {
+    if (production.empty()) return EPSILON;
+    string result;
+    for (const string& symbol : production) {
+        if (!result.empty()) result += " ";
+        result += symbol;
+    }
+    return result;
 }
 
-bool parse(const vector<string>& tokens, const Table& table) {
-    vector<string> stack = {"$", "E"};
-    size_t inputPosition = 0;
+void printSets(const string& title, const vector<string>& nonterminals,
+               const map<string, SymbolSet>& sets) {
+    cout << "\n" << title << ":\n";
+    for (const string& nonterminal : nonterminals) {
+        cout << "  " << title << "(" << nonterminal << ") = { ";
+        bool firstItem = true;
+        for (const string& item : sets.at(nonterminal)) {
+            if (!firstItem) cout << ", ";
+            cout << item;
+            firstItem = false;
+        }
+        cout << " }\n";
+    }
+}
 
-    cout << "\nParsing steps:\n";
-    cout << "Stack (top at right) | Next token | Action\n";
+bool parseInput(const vector<string>& tokens, const string& start,
+                const SymbolSet& terminals, const SymbolSet& nonterminals,
+                const ParsingTable& table) {
+    vector<string> stack = {END_MARKER, start};
+    size_t position = 0;
 
+    cout << "\nParsing steps (stack top is on the right):\n";
     while (!stack.empty()) {
         const string top = stack.back();
-        const string lookahead = tokens[inputPosition];
+        const string lookahead = tokens[position];
 
-        string stackView;
-        for (const string& symbol : stack) stackView += symbol + " ";
-        cout << stackView << "| " << lookahead << " | ";
-
-        if (top == "$" && lookahead == "$") {
-            cout << "accept\n";
+        if (top == END_MARKER && lookahead == END_MARKER) {
+            cout << "Accepted.\n";
             return true;
         }
 
-        if (!isNonterminal(top)) {
+        if (terminals.count(top) || top == END_MARKER) {
             if (top != lookahead) {
-                cout << "error: expected '" << top << "'\n";
+                cout << "Rejected: expected '" << top << "' but found '"
+                     << lookahead << "'.\n";
                 return false;
             }
-            cout << "match '" << lookahead << "'\n";
+            cout << "Match " << lookahead << "\n";
             stack.pop_back();
-            ++inputPosition;
+            ++position;
             continue;
         }
 
-        const auto entry = table.find({top, lookahead});
-        if (entry == table.end()) {
-            cout << "error: no table entry for (" << top
-                 << ", " << lookahead << ")\n";
+        if (!nonterminals.count(top)) {
+            cout << "Rejected: unknown grammar symbol '" << top << "'.\n";
             return false;
         }
 
-        cout << "expand " << top << " -> ";
-        if (entry->second.empty()) {
-            cout << "epsilon\n";
-        } else {
-            for (const string& symbol : entry->second) cout << symbol;
-            cout << '\n';
+        const auto entry = table.find({top, lookahead});
+        if (entry == table.end() || entry->second.empty()) {
+            cout << "Rejected: no table entry for (" << top << ", "
+                 << lookahead << ").\n";
+            return false;
         }
 
+        const Production& production = entry->second.front();
+        cout << top << " -> " << productionText(production) << "\n";
         stack.pop_back();
-        // Push the production in reverse so its first symbol is processed next.
-        for (auto it = entry->second.rbegin(); it != entry->second.rend(); ++it) {
+        for (auto it = production.rbegin(); it != production.rend(); ++it) {
             stack.push_back(*it);
         }
     }
-
     return false;
 }
 
 int main() {
-    cout << "LL(1) arithmetic expression parser\n";
-    cout << "Grammar: E -> TQ, Q -> +TQ | epsilon, T -> FR, "
-            "R -> *FR | epsilon, F -> (E) | id\n";
-    cout << "Enter an expression (identifiers/numbers, +, *, parentheses): ";
+    cout << "LL(1) Grammar Analyzer and Parser\n";
+    cout << "Enter symbols separated by spaces. Use 'epsilon' for an empty "
+            "production; do not include $ in the terminal list.\n";
 
-    string input;
-    if (!getline(cin, input)) {
-        cerr << "Could not read input.\n";
+    string line;
+    cout << "\nTerminals: ";
+    if (!getline(cin, line)) return 1;
+    const vector<string> terminalWords = splitWords(line);
+    const SymbolSet terminals(terminalWords.begin(), terminalWords.end());
+    if (terminals.empty() || terminals.count(EPSILON) || terminals.count(END_MARKER)) {
+        cerr << "Invalid terminal list. It must be non-empty and cannot contain "
+                "'epsilon' or '$'.\n";
         return 1;
     }
 
-    vector<string> tokens;
-    string error;
-    if (!tokenize(input, tokens, error)) {
-        cout << "Rejected: " << error << '\n';
+    cout << "Nonterminals: ";
+    if (!getline(cin, line)) return 1;
+    const vector<string> nonterminals = splitWords(line);
+    const SymbolSet nonterminalSet(nonterminals.begin(), nonterminals.end());
+    if (nonterminals.empty()) {
+        cerr << "The nonterminal list cannot be empty.\n";
+        return 1;
+    }
+    for (const string& symbol : nonterminalSet) {
+        if (terminals.count(symbol) || symbol == EPSILON || symbol == END_MARKER) {
+            cerr << "Symbol lists overlap or use a reserved symbol: " << symbol << "\n";
+            return 1;
+        }
+    }
+
+    cout << "Start symbol: ";
+    if (!getline(cin, line)) return 1;
+    const vector<string> startWords = splitWords(line);
+    if (startWords.size() != 1 || !nonterminalSet.count(startWords[0])) {
+        cerr << "The start symbol must be one of the listed nonterminals.\n";
+        return 1;
+    }
+    const string start = startWords[0];
+
+    cout << "Number of production lines (one line per left-hand side): ";
+    if (!getline(cin, line)) return 1;
+    int productionLineCount = 0;
+    try {
+        size_t used = 0;
+        productionLineCount = stoi(line, &used);
+        if (used != line.size() || productionLineCount <= 0) throw invalid_argument("count");
+    } catch (...) {
+        cerr << "Enter a positive whole number of production lines.\n";
         return 1;
     }
 
-    const bool accepted = parse(tokens, makeParsingTable());
-    cout << (accepted ? "\nAccepted: the expression matches the grammar.\n"
-                      : "\nRejected: the expression does not match the grammar.\n");
-    return accepted ? 0 : 1;
+    vector<Rule> rules;
+    cout << "Enter each production like A -> symbol symbol | epsilon:\n";
+    for (int i = 0; i < productionLineCount; ++i) {
+        if (!getline(cin, line)) {
+            cerr << "Missing production line.\n";
+            return 1;
+        }
+
+        const size_t arrow = line.find("->");
+        if (arrow == string::npos || line.find("->", arrow + 2) != string::npos) {
+            cerr << "Each production line must contain exactly one '->'.\n";
+            return 1;
+        }
+
+        const vector<string> lhsWords = splitWords(line.substr(0, arrow));
+        if (lhsWords.size() != 1 || !nonterminalSet.count(lhsWords[0])) {
+            cerr << "The left side must be one listed nonterminal.\n";
+            return 1;
+        }
+        const string lhs = lhsWords[0];
+        string alternativesText = line.substr(arrow + 2);
+        string alternative;
+        istringstream alternatives(alternativesText);
+        while (getline(alternatives, alternative, '|')) {
+            Production rhs = splitWords(alternative);
+            if (rhs.empty() || (rhs.size() == 1 && rhs[0] == EPSILON)) {
+                rhs.clear();
+            } else if (find(rhs.begin(), rhs.end(), EPSILON) != rhs.end()) {
+                cerr << "'epsilon' must appear alone as a production alternative.\n";
+                return 1;
+            }
+
+            for (const string& symbol : rhs) {
+                if (!terminals.count(symbol) && !nonterminalSet.count(symbol)) {
+                    cerr << "Undeclared symbol in production: " << symbol << "\n";
+                    return 1;
+                }
+            }
+            rules.push_back({lhs, rhs});
+        }
+    }
+
+    for (const string& nonterminal : nonterminals) {
+        const bool hasRule = any_of(rules.begin(), rules.end(),
+            [&](const Rule& rule) { return rule.first == nonterminal; });
+        if (!hasRule) {
+            cerr << "No production was provided for nonterminal " << nonterminal << ".\n";
+            return 1;
+        }
+    }
+
+    const map<string, SymbolSet> first = computeFirst(nonterminals, terminals, rules);
+    const map<string, SymbolSet> follow =
+        computeFollow(nonterminals, terminals, rules, start, first);
+    printSets("FIRST", nonterminals, first);
+    printSets("FOLLOW", nonterminals, follow);
+
+    const ParsingTable table = makeTable(rules, terminals, nonterminalSet, first, follow);
+    bool isLL1 = true;
+    cout << "\nParsing table conflicts:\n";
+    for (const auto& entry : table) {
+        if (entry.second.size() > 1) {
+            isLL1 = false;
+            cout << "  M[" << entry.first.first << ", " << entry.first.second << "] has "
+                 << entry.second.size() << " productions\n";
+        }
+    }
+    if (!isLL1) {
+        cout << "The grammar is not LL(1); no string will be parsed.\n";
+        return 0;
+    }
+
+    cout << "The grammar is LL(1).\n";
+    cout << "Enter the input string as space-separated terminals (blank for epsilon): ";
+    if (!getline(cin, line)) return 1;
+    vector<string> tokens = splitWords(line);
+    for (const string& token : tokens) {
+        if (!terminals.count(token)) {
+            cout << "Rejected: '" << token << "' is not a listed terminal.\n";
+            return 1;
+        }
+    }
+    tokens.push_back(END_MARKER);
+    parseInput(tokens, start, terminals, nonterminalSet, table);
+    return 0;
 }
