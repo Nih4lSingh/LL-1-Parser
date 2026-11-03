@@ -312,7 +312,7 @@ int main() {
 
     const ParsingTable table = makeTable(rules, terminals, nonterminalSet, first, follow);
 
-    cout << "\\nParsing table (filled entries):\\n";
+    cout << "\nParsing table (filled entries):\n";
     for (const string& nonterminal : nonterminals) {
         for (const string& terminal : terminals) {
             const auto entry = table.find({nonterminal, terminal});
@@ -322,7 +322,7 @@ int main() {
                 if (i > 0) cout << " | ";
                 cout << productionText(entry->second[i]);
             }
-            cout << "\\n";
+            cout << "\n";
         }
         const auto endEntry = table.find({nonterminal, END_MARKER});
         if (endEntry != table.end()) {
@@ -331,7 +331,7 @@ int main() {
                 if (i > 0) cout << " | ";
                 cout << productionText(endEntry->second[i]);
             }
-            cout << "\\n";
+            cout << "\n";
         }
     }
 
