@@ -329,16 +329,46 @@ int main() {
     }
 
     cout << "The grammar is LL(1).\n";
-    cout << "Enter the input string as space-separated terminals (blank for epsilon): ";
+    cout << "Number of input strings to check: ";
     if (!getline(cin, line)) return 1;
-    vector<string> tokens = splitWords(line);
-    for (const string& token : tokens) {
-        if (!terminals.count(token)) {
-            cout << "Rejected: '" << token << "' is not a listed terminal.\n";
+    int inputCount = 0;
+    try {
+        size_t used = 0;
+        inputCount = stoi(line, &used);
+        if (used != line.size() || inputCount <= 0) {
+            cerr << "Enter a positive whole number of input strings.\\n";
             return 1;
         }
+    } catch (const exception&) {
+        cerr << "Enter a positive whole number of input strings.\\n";
+        return 1;
     }
-    tokens.push_back(END_MARKER);
-    parseInput(tokens, start, terminals, nonterminalSet, table);
+
+    for (int i = 0; i < inputCount; ++i) {
+        cout << "Input string " << (i + 1)
+             << " (space-separated terminals; blank for epsilon): ";
+        if (!getline(cin, line)) {
+            cerr << "Missing input string.\\n";
+            return 1;
+        }
+
+        vector<string> tokens = splitWords(line);
+        bool validTokens = true;
+        for (const string& token : tokens) {
+            if (!terminals.count(token)) {
+                cout << "Rejected: '" << token << "' is not a listed terminal.\\n";
+                validTokens = false;
+                break;
+            }
+        }
+
+        bool accepted = false;
+        if (validTokens) {
+            tokens.push_back(END_MARKER);
+            accepted = parseInput(tokens, start, terminals, nonterminalSet, table);
+        }
+        cout << "String " << (i + 1) << " is "
+             << (accepted ? "accepted." : "not accepted.") << "\\n\\n";
+    }
     return 0;
 }
