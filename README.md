@@ -39,7 +39,7 @@ F -> id
 
 In the running program, enter each value when prompted. The production lines must appear in the listed order: first `E`, then `Q`, `T`, `R`, and `F`.
 
-The program calculates and displays `FIRST` and `FOLLOW` for every nonterminal, then checks the generated LL(1) parsing table. If a table cell needs multiple productions, it reports the conflict and says the grammar is not LL(1). If there are no conflicts, it asks for a string to parse.
+The program calculates and displays `FIRST` and `FOLLOW` for every nonterminal, then displays the filled entries in the generated parsing table. Each entry `M[A, a] = production` tells the parser which production to use when the stack has nonterminal `A` and the next input token is `a`. If a cell has multiple productions, they are shown separated by `|` and reported as a conflict, so the grammar is not LL(1). If there are no conflicts, the program says so and asks how many strings to check.
 
 ## Entering strings
 
