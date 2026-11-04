@@ -6,8 +6,8 @@
 #include <utility>
 #include <vector>
 
-inline constexpr char EPSILON[] = "epsilon";
-inline constexpr char END_MARKER[] = "$";
+constexpr char EPSILON[] = "epsilon";
+constexpr char END_MARKER[] = "$";
 
 using Production = std::vector<std::string>;
 using Rule = std::pair<std::string, Production>;
