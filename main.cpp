@@ -178,7 +178,7 @@ bool parseInput(const vector<string>& tokens, const string& start,
         for (auto it = stack.rbegin(); it != stack.rend(); ++it) {
             cout << *it << " ";
         }
-        cout << "\\n  Input buffer: ";
+        cout << "\n  Input buffer: ";
         for (size_t i = position; i < tokens.size(); ++i) {
             cout << tokens[i] << " ";
         }
