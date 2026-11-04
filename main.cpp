@@ -167,7 +167,7 @@ bool parseInput(const vector<string>& tokens, const string& start,
     vector<string> stack = {END_MARKER, start};
     size_t position = 0;
 
-    cout << "\nParsing steps (stack top is on the right):\n";
+    cout << "\nParsing steps (stack top is on the left):\n";
     size_t step = 1;
     while (!stack.empty()) {
         const string top = stack.back();
@@ -175,8 +175,10 @@ bool parseInput(const vector<string>& tokens, const string& start,
 
         cout << "Step " << step++ << ":\n";
         cout << "  Stack: ";
-        for (const string& symbol : stack) cout << symbol << " ";
-        cout << "\n  Input buffer: ";
+        for (auto it = stack.rbegin(); it != stack.rend(); ++it) {
+            cout << *it << " ";
+        }
+        cout << "\\n  Input buffer: ";
         for (size_t i = position; i < tokens.size(); ++i) {
             cout << tokens[i] << " ";
         }
