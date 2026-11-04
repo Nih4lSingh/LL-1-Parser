@@ -9,16 +9,26 @@ You need a C++17 compiler such as g++.
 On Windows (PowerShell):
 
 ```powershell
-g++ -std=c++17 -Wall -Wextra -pedantic main.cpp -o ll1_parser.exe
+g++ -std=c++17 -Wall -Wextra -pedantic main.cpp first_follow.cpp parsing_table.cpp parser.cpp -o ll1_parser.exe
 .\ll1_parser.exe
 ```
 
 On Linux or macOS:
 
 ```sh
-g++ -std=c++17 -Wall -Wextra -pedantic main.cpp -o ll1_parser
+g++ -std=c++17 -Wall -Wextra -pedantic main.cpp first_follow.cpp parsing_table.cpp parser.cpp -o ll1_parser
 ./ll1_parser
 ```
+
+## Project files
+
+- `grammar.hpp` defines the grammar and parsing-table types shared by the modules.
+- `first_follow.hpp/.cpp` declares and implements FIRST and FOLLOW calculations.
+- `parsing_table.hpp/.cpp` declares and implements table construction, display, and conflict reporting.
+- `parser.hpp/.cpp` declares and implements input-string parsing and the stack trace.
+- `main.cpp` collects input and calls these modules.
+
+The `.hpp` files provide function declarations. Their implementations are in the matching `.cpp` files, which are compiled together using the commands above.
 
 ## Entering a grammar
 
