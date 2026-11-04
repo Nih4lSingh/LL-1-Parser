@@ -52,7 +52,7 @@ id + id * id
 id + *
 ```
 
-The parser shows the production expansions and terminal matches for each string, followed by an accepted or not accepted result. Press Enter on a blank line to check the empty string.
+For every parsing step, the parser displays the stack and remaining input buffer before showing the action. After it matches a terminal, the next step shows the stack with that terminal popped and the input buffer with that token consumed. It then reports whether the string is accepted. Press Enter on a blank line to check the empty string.
 
 ## Input rules and current limits
 
